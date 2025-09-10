@@ -8,109 +8,60 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <style>
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh; padding:20px;
-    }
-    .container {
-      max-width: 1200px; margin:0 auto; background:#fff; border-radius:20px;
-      box-shadow:0 20px 60px rgba(0,0,0,.3); overflow:hidden;
-    }
-    .header {
-      position:relative;
-      background: linear-gradient(135deg, #5e72e4 0%, #825ee4 100%);
-      color:#fff; padding:30px; text-align:center;
-    }
-    .header h1 { font-size:2.5em; margin-bottom:10px; }
-    .header p { opacity:.9; font-size:1.1em; }
-    .refresh-btn {
-      position:absolute; top:18px; right:20px;
-      padding:10px 16px; border:none; border-radius:22px;
-      background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%);
-      color:#fff; font-weight:700; cursor:pointer; box-shadow:0 6px 16px rgba(0,0,0,.25);
-    }
-    .refresh-btn:hover { transform: translateY(-1px); }
-    .main-content { padding:40px; }
-    .format-selector{
-      background:#f8f9ff; padding:20px; border-radius:10px; margin-bottom:30px;
-      display:flex; align-items:center; gap:20px;
-    }
-    .format-selector label{ font-weight:600; color:#555; }
-    .format-selector select{
-      padding:10px 15px; border:2px solid #667eea; border-radius:8px; font-size:1em;
-      background:#fff; cursor:pointer; min-width:240px;
-    }
-    .format-selector select:focus{
-      outline:none; border-color:#825ee4; box-shadow:0 0 0 3px rgba(102,126,234,.1);
-    }
-    .upload-section{
-      border:3px dashed #667eea; border-radius:15px; padding:40px; text-align:center;
-      transition:all .3s ease; background:#f8f9ff; cursor:pointer;
-    }
-    .upload-section:hover{ border-color:#825ee4; background:#f0f2ff; }
-    .upload-section.dragover{ background:#e8ebff; transform:scale(1.02); }
-    .upload-icon{ font-size:4em; color:#667eea; margin-bottom:20px; }
-    .file-input{ display:none; }
-    .upload-label{
-      display:inline-block; padding:12px 30px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color:#fff; border-radius:25px; cursor:pointer; transition:transform .3s ease; font-weight:600;
-    }
-    .upload-label:hover{ transform: translateY(-2px); }
-    .file-list{ margin-top:30px; }
-    .file-item{
-      background:#fff; border:1px solid #e0e0e0; border-radius:10px; padding:15px;
-      margin-bottom:15px; display:flex; justify-content:space-between; align-items:center;
-      transition:all .3s ease;
-    }
-    .file-item:hover{ box-shadow:0 5px 15px rgba(0,0,0,.1); }
-    .file-info{ display:flex; align-items:center; gap:15px; }
-    .file-icon{ font-size:2em; color:#667eea; }
-    .btn{ padding:10px 20px; border:none; border-radius:5px; cursor:pointer; font-weight:600; transition:all .3s ease; }
-    .btn-process{
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color:#fff; font-size:1.1em; padding:15px 40px; border-radius:25px; margin-top:20px;
-    }
-    .btn-process:hover{ transform: translateY(-2px); box-shadow:0 10px 20px rgba(102,126,234,.4); }
-    .btn-process:disabled{ opacity:.5; cursor:not-allowed; }
-    .btn-remove{ background:#ff4757; color:#fff; }
-    .btn-remove:hover{ background:#ff3838; }
-    .results-section{ margin-top:40px; display:none; }
-    .results-header{ background:#f8f9ff; padding:20px; border-radius:10px; margin-bottom:20px; }
-    .asset-card{
-      background:#fff; border:1px solid #e0e0e0; border-radius:10px; padding:20px; margin-bottom:20px;
-      transition:all .3s ease;
-    }
-    .asset-card:hover{ box-shadow:0 5px 15px rgba(0,0,0,.1); }
-    .asset-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; padding-bottom:15px; border-bottom:2px solid #f0f0f0; }
-    .asset-name{ font-size:1.2em; font-weight:600; color:#333; }
-    .asset-count{ background:#667eea; color:#fff; padding:5px 15px; border-radius:15px; font-size:.9em; }
-    .table-container{ overflow-x:auto; margin-top:15px; }
-    table{ width:100%; border-collapse:collapse; }
-    th{
-      background:#f8f9ff; padding:12px; text-align:left; font-weight:600; color:#555; border-bottom:2px solid #e0e0e0;
-    }
-    td{ padding:10px 12px; border-bottom:1px solid #f0f0f0; }
-    tr:hover{ background:#fafbff; }
-    .btn-download{
-      background: linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%);
-      color:#fff; padding:8px 20px; border-radius:20px; font-size:.9em;
-    }
-    .btn-download:hover{ transform: translateY(-2px); box-shadow:0 5px 15px rgba(58,123,213,.4); }
-    .loading{ display:none; text-align:center; padding:40px; }
-    .spinner{
-      border:4px solid #f3f3f3; border-top:4px solid #667eea; border-radius:50%; width:50px; height:50px;
-      animation:spin 1s linear infinite; margin:0 auto 20px;
-    }
-    @keyframes spin{ 0%{transform:rotate(0)} 100%{transform:rotate(360deg)} }
-    .status-message{ margin-top:20px; padding:15px; border-radius:10px; display:none; }
-    .status-success{ background:#d4edda; color:#155724; border:1px solid #c3e6cb; }
-    .status-error{ background:#f8d7da; color:#721c24; border:1px solid #f5c6cb; }
-    .status-info{ background:#d1ecf1; color:#0c5460; border:1px solid #bee5eb; }
-    .debug-section{ margin-top:20px; padding:20px; background:#f8f9ff; border-radius:10px; display:none; }
-    .debug-content{ font-family:monospace; font-size:.9em; white-space:pre-wrap; max-height:300px; overflow-y:auto; background:#fff; padding:10px; border-radius:5px; margin-top:10px; }
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;padding:20px}
+    .container{max-width:1200px;margin:0 auto;background:#fff;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+    .header{position:relative;background:linear-gradient(135deg,#5e72e4 0%,#825ee4 100%);color:#fff;padding:30px;text-align:center}
+    .header h1{font-size:2.5em;margin-bottom:10px}
+    .header p{opacity:.9;font-size:1.1em}
+    .refresh-btn{position:absolute;right:16px;top:16px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.35);color:#fff;padding:8px 14px;border-radius:999px;font-weight:600;cursor:pointer;backdrop-filter:blur(4px)}
+    .refresh-btn:hover{background:rgba(255,255,255,.25)}
+    .main-content{padding:40px}
+    .format-selector{background:#f8f9ff;padding:20px;border-radius:10px;margin-bottom:30px;display:flex;align-items:center;gap:20px}
+    .format-selector label{font-weight:600;color:#555}
+    .format-selector select{padding:10px 15px;border:2px solid #667eea;border-radius:8px;font-size:1em;background:#fff;cursor:pointer;min-width:240px}
+    .format-selector select:focus{outline:none;border-color:#825ee4;box-shadow:0 0 0 3px rgba(102,126,234,.1)}
+    .upload-section{border:3px dashed #667eea;border-radius:15px;padding:40px;text-align:center;transition:.3s;background:#f8f9ff;cursor:pointer}
+    .upload-section:hover{border-color:#825ee4;background:#f0f2ff}
+    .upload-section.dragover{background:#e8ebff;transform:scale(1.02)}
+    .upload-icon{font-size:4em;color:#667eea;margin-bottom:20px}
+    .file-input{display:none}
+    .upload-label{display:inline-block;padding:12px 30px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border-radius:25px;cursor:pointer;transition:transform .3s;font-weight:600}
+    .upload-label:hover{transform:translateY(-2px)}
+    .file-list{margin-top:30px}
+    .file-item{background:#fff;border:1px solid #e0e0e0;border-radius:10px;padding:15px;margin-bottom:15px;display:flex;justify-content:space-between;align-items:center;transition:.3s}
+    .file-item:hover{box-shadow:0 5px 15px rgba(0,0,0,.1)}
+    .file-info{display:flex;align-items:center;gap:15px}
+    .file-icon{font-size:2em;color:#667eea}
+    .btn{padding:10px 20px;border:none;border-radius:5px;cursor:pointer;font-weight:600;transition:.3s}
+    .btn-process{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;font-size:1.1em;padding:15px 40px;border-radius:25px;margin-top:20px}
+    .btn-process:hover{transform:translateY(-2px);box-shadow:0 10px 20px rgba(102,126,234,.4)}
+    .btn-process:disabled{opacity:.5;cursor:not-allowed}
+    .btn-remove{background:#ff4757;color:#fff}.btn-remove:hover{background:#ff3838}
+    .results-section{margin-top:40px;display:none}
+    .results-header{background:#f8f9ff;padding:20px;border-radius:10px;margin-bottom:20px}
+    .asset-card{background:#fff;border:1px solid #e0e0e0;border-radius:10px;padding:20px;margin-bottom:20px;transition:.3s}
+    .asset-card:hover{box-shadow:0 5px 15px rgba(0,0,0,.1)}
+    .asset-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;padding-bottom:15px;border-bottom:2px solid #f0f0f0}
+    .asset-name{font-size:1.2em;font-weight:600;color:#333}
+    .asset-code{color:#666;font-size:.9em;margin-top:5px}
+    .asset-count{background:#667eea;color:#fff;padding:5px 15px;border-radius:15px;font-size:.9em}
+    .table-container{overflow-x:auto;margin-top:15px}
+    table{width:100%;border-collapse:collapse}
+    th{background:#f8f9ff;padding:12px;text-align:left;font-weight:600;color:#555;border-bottom:2px solid #e0e0e0}
+    td{padding:10px 12px;border-bottom:1px solid #f0f0f0}
+    tr:hover{background:#fafbff}
+    .btn-download{background:linear-gradient(135deg,#00d2ff 0%,#3a7bd5 100%);color:#fff;padding:8px 20px;border-radius:20px;font-size:.9em}
+    .btn-download:hover{transform:translateY(-2px);box-shadow:0 5px 15px rgba(58,123,213,.4)}
+    .loading{display:none;text-align:center;padding:40px}
+    .spinner{border:4px solid #f3f3f3;border-top:4px solid #667eea;border-radius:50%;width:50px;height:50px;animation:spin 1s linear infinite;margin:0 auto 20px}
+    @keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+    .status-message{margin-top:20px;padding:15px;border-radius:10px;display:none}
+    .status-success{background:#d4edda;color:#155724;border:1px solid #c3e6cb}
+    .status-error{background:#f8d7da;color:#721c24;border:1px solid #f5c6cb}
+    .status-info{background:#d1ecf1;color:#0c5460;border:1px solid #bee5eb}
+    .debug-section{margin-top:20px;padding:20px;background:#f8f9ff;border-radius:10px;display:none}
+    .debug-content{font-family:monospace;font-size:.9em;white-space:pre-wrap;max-height:300px;overflow-y:auto;background:#fff;padding:10px;border-radius:5px;margin-top:10px}
   </style>
 </head>
 <body>
@@ -118,7 +69,7 @@
     <div class="header">
       <h1>📊 Unrealised CGT to Centric Processor</h1>
       <p>Convert Unrealised Capital Gains reports to Centric-compatible CSV format</p>
-      <button class="refresh-btn" id="refreshBtn" title="Refresh">↻ Refresh</button>
+      <button class="refresh-btn" onclick="location.reload()">↻ Refresh</button>
     </div>
 
     <div class="main-content">
@@ -129,7 +80,7 @@
           <option value="external">External SMSF Report</option>
           <option value="lifefocus">LifeFocus Report</option>
         </select>
-        <span style="color:#666;font-size:.9em;">Pick your report type (no auto-detect)</span>
+        <span style="color:#666;font-size:.9em;">Select report format</span>
       </div>
 
       <div class="upload-section" id="uploadSection">
@@ -175,32 +126,22 @@
     let processedData = {};
     let debugMode = true;
 
-    // PDF.js worker
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-    // UI elements
     const uploadSection = document.getElementById('uploadSection');
     const fileInput = document.getElementById('fileInput');
     const fileList = document.getElementById('fileList');
     const processBtn = document.getElementById('processBtn');
     const formatSelect = document.getElementById('formatSelect');
 
-    // Refresh button
-    document.getElementById('refreshBtn').addEventListener('click', () => {
-      location.reload();
-    });
-
-    // Drag & drop
-    uploadSection.addEventListener('dragover', (e) => { e.preventDefault(); uploadSection.classList.add('dragover'); });
+    uploadSection.addEventListener('dragover', e => { e.preventDefault(); uploadSection.classList.add('dragover'); });
     uploadSection.addEventListener('dragleave', () => uploadSection.classList.remove('dragover'));
-    uploadSection.addEventListener('drop', (e) => {
-      e.preventDefault(); uploadSection.classList.remove('dragover'); handleFiles(e.dataTransfer.files);
-    });
+    uploadSection.addEventListener('drop', e => { e.preventDefault(); uploadSection.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
     uploadSection.addEventListener('click', () => fileInput.click());
-    fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+    fileInput.addEventListener('change', e => handleFiles(e.target.files));
 
     function handleFiles(files){
-      for (let f of files) if (f.type === 'application/pdf') uploadedFiles.push(f);
+      for (const file of files) if (file.type === 'application/pdf') uploadedFiles.push(file);
       updateFileList();
     }
     function updateFileList(){
@@ -209,7 +150,7 @@
       processBtn.style.display='inline-block';
       uploadedFiles.forEach((file, idx) => {
         const el = document.createElement('div');
-        el.className='file-item';
+        el.className = 'file-item';
         el.innerHTML = `
           <div class="file-info">
             <div class="file-icon">📄</div>
@@ -227,20 +168,18 @@
 
     async function processFiles(){
       if (!uploadedFiles.length) return;
-      document.getElementById('loading').style.display='block';
-      document.getElementById('resultsSection').style.display='none';
-      if (debugMode) document.getElementById('debugSection').style.display='block';
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('resultsSection').style.display = 'none';
+      if (debugMode) document.getElementById('debugSection').style.display = 'block';
       processBtn.disabled = true; processedData = {};
       try{
-        for (let file of uploadedFiles) await processPDF(file);
-        displayResults();
-        showStatus('Files processed successfully!', 'success');
-      }catch(err){
-        console.error(err);
-        showStatus('Error processing files. Check console/debug output.', 'error');
-        if (debugMode) addDebugInfo('Error: ' + err.message);
+        for (const file of uploadedFiles) await processPDF(file);
+        displayResults(); showStatus('Files processed successfully!','success');
+      }catch(e){
+        console.error(e); showStatus('Error processing files. See debug output.','error');
+        if (debugMode) addDebugInfo('Error: ' + e.message);
       }finally{
-        document.getElementById('loading').style.display='none';
+        document.getElementById('loading').style.display = 'none';
         processBtn.disabled = false;
       }
     }
@@ -249,223 +188,159 @@
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       let fullText = '';
-      for (let i = 1; i <= pdf.numPages; i++){
+      for (let i=1;i<=pdf.numPages;i++){
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
-        const pageText = textContent.items.map(it => it.str).join(' ');
+        const pageText = textContent.items.map(item => item.str).join(' ');
         fullText += pageText + '\n';
       }
       if (debugMode) addDebugInfo(`Extracted text from ${file.name} (first 600 chars):\n${fullText.substring(0,600)}`);
 
-      const selectedFormat = formatSelect.value;
-      if (selectedFormat === 'findex') parseFindexFormat(fullText);
-      else if (selectedFormat === 'external') parseExternalFormat(fullText);
-      else if (selectedFormat === 'lifefocus') parseLifeFocusFormat(fullText);
+      const fmt = formatSelect.value;
+      if (fmt === 'findex') parseFindex(fullText);
+      else if (fmt === 'external') parseExternal(fullText);
+      else if (fmt === 'lifefocus') parseLifeFocus(fullText);
     }
 
     function addDebugInfo(t){
-      const d = document.getElementById('debugContent');
-      d.textContent += t + '\n\n';
+      const box = document.getElementById('debugContent');
+      box.textContent += t + '\n\n';
     }
 
-    // ---------- External (unchanged) ----------
-    function parseExternalFormat(text){
-      if (debugMode) addDebugInfo('Parsing as External SMSF Report...');
-      const assetHeaders = [];
-      const fundPattern = /([A-Z]{3}\d{4}[A-Z]{2}\d*)\s*[-–]\s*([^0-9\n]+)/g;
-      let m;
-      while ((m = fundPattern.exec(text)) !== null){
-        assetHeaders.push({ code:m[1], name:m[2].trim(), position:m.index });
-      }
-      const stockPattern = /([A-Z]{2,6}\.[A-Z]{2}\d*)\s*[-–]\s*([^0-9\n]+)/g;
-      while ((m = stockPattern.exec(text)) !== null){
-        assetHeaders.push({ code:m[1], name:m[2].trim(), position:m.index });
-      }
+    /* ---------------- External SMSF (unchanged) ---------------- */
+    function parseExternal(text){
+      const assetHeaders=[];
+      const fundPattern=/([A-Z]{3}\d{4}[A-Z]{2}\d*)\s*[-–]\s*([^0-9\n]+)/g;
+      let m; while((m=fundPattern.exec(text))!==null){ assetHeaders.push({code:m[1],name:m[2].trim(),position:m.index}); }
+      const stockPattern=/([A-Z]{2,6}\.[A-Z]{2}\d*)\s*[-–]\s*([^0-9\n]+)/g;
+      while((m=stockPattern.exec(text))!==null){ assetHeaders.push({code:m[1],name:m[2].trim(),position:m.index}); }
       assetHeaders.sort((a,b)=>a.position-b.position);
+
       for (let i=0;i<assetHeaders.length;i++){
-        const a = assetHeaders[i];
-        const nextPos = i<assetHeaders.length-1 ? assetHeaders[i+1].position : text.length;
-        const section = text.substring(a.position, nextPos);
-        if (!processedData[a.code]) processedData[a.code]=[];
-        const dateRe = /(\d{2}\/\d{2}\/\d{4})/g; let dm; const dates=[];
-        while ((dm=dateRe.exec(section))!==null) dates.push({date:dm[1], pos:dm.index});
-        dates.forEach((dObj, idx)=>{
-          const start=dObj.pos, end = idx<dates.length-1 ? dates[idx+1].pos : section.length;
-          const dateSection = section.substring(start,end).replace(/\d{2}\/\d{2}\/\d{4}/,'').trim();
-          const numRe = /\(?([\d,]+\.?\d*)\)?/g;
-          const nums = [...dateSection.matchAll(numRe)]
-            .map(mm => parseFloat(mm[1].replace(/,/g,'')))
-            .filter(v => !isNaN(v));
-          if (nums.length>=5){
-            const units = nums[1], cb3 = nums[2], rcb5=nums[4];
-            if (units>0 && cb3>0){
-              processedData[a.code].push({
-                instrumentCode:a.code, instrumentName:a.name, type:'Open Tax Parcel',
-                quantity: units, acquisitionDate: dObj.date,
-                costBase: rcb5, reducedCostBase: cb3
-              });
+        const a=assetHeaders[i];
+        const next=i<assetHeaders.length-1?assetHeaders[i+1].position:text.length;
+        const section=text.substring(a.position,next);
+        if(!processedData[a.code]) processedData[a.code]=[];
+
+        const dateRe=/(\d{2}\/\d{2}\/\d{4})/g; let dm; const dates=[];
+        while((dm=dateRe.exec(section))!==null) dates.push({date:dm[1],pos:dm.index});
+
+        dates.forEach((d,idx)=>{
+          const start=d.pos, end=idx<dates.length-1?dates[idx+1].pos:section.length;
+          const row=section.substring(start,end).replace(/\d{2}\/\d{2}\/\d{4}/,'').trim();
+          const numRe=/\(?([\d,]+\.?\d*)\)?/g;
+          const nums=[...row.matchAll(numRe)].map(mm=>parseFloat(mm[1].replace(/,/g,''))).filter(v=>!isNaN(v));
+          if(nums.length>=5){
+            const units=nums[1], cb3=nums[2], rcb5=nums[4];
+            if(units>0&&cb3>0){
+              processedData[a.code].push({instrumentCode:a.code,instrumentName:a.name,type:'Open Tax Parcel',quantity:units,acquisitionDate:d.date,costBase:rcb5,reducedCostBase:cb3});
             }
-          }else if (nums.length>=3){
-            const units = nums[1] ?? nums[0], cb = nums[2] ?? nums[1];
-            if (units>0 && cb>0){
-              processedData[a.code].push({
-                instrumentCode:a.code, instrumentName:a.name, type:'Open Tax Parcel',
-                quantity: units, acquisitionDate: dObj.date,
-                costBase: cb, reducedCostBase: cb
-              });
+          }else if(nums.length>=3){
+            const units=nums[1]??nums[0], cb=nums[2]??nums[1];
+            if(units>0&&cb>0){
+              processedData[a.code].push({instrumentCode:a.code,instrumentName:a.name,type:'Open Tax Parcel',quantity:units,acquisitionDate:d.date,costBase:cb,reducedCostBase:cb});
             }
           }
         });
       }
-      Object.keys(processedData).forEach(k => { if (!processedData[k].length) delete processedData[k]; });
+      for(const k of Object.keys(processedData)){ if(!processedData[k].length) delete processedData[k]; }
     }
 
-    // ---------- FINDEX (fix only Reduced Cost Base) ----------
-    function parseFindexFormat(text){
-      if (debugMode) addDebugInfo('Parsing as Findex SMSF Report...');
-      const assetRe = /([A-Za-z\.\s&]+?)\s*\(ASX:([A-Z]{2,6})\)/g;
-      const holdingRe =
-        /(\d{2}\/\d{2}\/\d{4})\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)(?:\s+([\d,]+\.?\d*))?(?:\s+([\d,]+\.?\d*))?(?:\s+([\d,]+\.?\d*))?/g;
+    /* ---------------- FINDEX SMSF (fix ONLY RCB; keep quantity logic) ---------------- */
+    function parseFindex(text){
+      const assetRe=/([A-Za-z\.\s&]+?)\s*\(ASX:([A-Z]{2,6})\)/g;
+      const assets=[...text.matchAll(assetRe)];
+      if(!assets.length) return;
 
-      const assets = [...text.matchAll(assetRe)];
-      const allHoldings = [...text.matchAll(holdingRe)];
+      assets.forEach((am,ai)=>{
+        const name=am[1].trim(), code=am[2].trim();
+        const start=am.index, end = ai<assets.length-1?assets[ai+1].index:text.length;
+        const section=text.substring(start,end);
+        if(!processedData[code]) processedData[code]=[];
 
-      assets.forEach((am, idx)=>{
-        const name = am[1].trim(), code = am[2].trim();
-        const start = am.index, end = (idx<assets.length-1) ? assets[idx+1].index : text.length;
-        const section = text.substring(start, end);
-        if (!processedData[code]) processedData[code]=[];
+        // Each row begins with dd/mm/yyyy then a long run of numbers.
+        const rowRe=/(\d{2}\/\d{2}\/\d{4})((?:\s+[-()$,.\d]+){8,})/g;
+        let rm;
+        while((rm=rowRe.exec(section))!==null){
+          const date=rm[1];
+          const tail=rm[2];
+          const toks=[...tail.matchAll(/-?\(?\d{1,3}(?:,\d{3})*(?:\.\d+)?\)?/g)]
+            .map(t=>parseFloat(t[0].replace(/[(),]/g,'')))
+            .filter(v=>!isNaN(v));
 
-        allHoldings.forEach(hm=>{
-          if (hm.index <= start || hm.index >= end) return;
-
-          const date = hm[1];
-          const num1 = parseFloat(hm[2].replace(/,/g,''));   // after-date numbers
-          const num2 = parseFloat(hm[3].replace(/,/g,''));
-          const num3 = parseFloat(hm[4].replace(/,/g,''));
-          const aIdxInSection = hm.index - start;
-
-          // quantity & cost base (UNCHANGED)
-          let quantity, costBase;
-          if (num2 > num1 * 2){ quantity = num1; costBase = num3; }
-          else if (num1 > num2 * 2){ quantity = num2; costBase = num3; }
-          else { quantity = num1; costBase = num3; }
-
-          // Reduced Cost Base: take the CBC "Amount" immediately before the date
-          const windowStart = Math.max(0, aIdxInSection - 160);
-          const windowEnd   = Math.min(section.length, aIdxInSection + 20);
-          const around = section.substring(windowStart, windowEnd);
-          const datePos = around.indexOf(date);
-          const numTokRe = /\(?-?\d{1,3}(?:,\d{3})*(?:\.\d+)?\)?/g;
-          const tokens = [];
-          let m; while ((m = numTokRe.exec(around)) !== null){
-            const raw = m[0];
-            const val = parseFloat(raw.replace(/[(),]/g,''));
-            if (!isNaN(val)) tokens.push({val, pos:m.index});
-          }
-          const pre = tokens.filter(t => t.pos < datePos);
-          let reducedCostBase = costBase; // default fallback
-
-          if (pre.length >= 2){
-            // Use the SECOND number among the 4 closest pre-date numbers (typical CBC: [x, AMOUNT, 0, 0])
-            const lastGroup = pre.slice(-4); // if fewer than 4, this returns what exists
-            if (lastGroup.length >= 2){
-              const candidate = lastGroup[1].val;
-              if (candidate >= 0) reducedCostBase = candidate;
+          // Mapping after the date:
+          // 0: Quantity, 1: Market Value, 2: Original Cost (Cost Base), 3: Accounting Gain/Loss,
+          // 4: Tax Free, 5: Tax Deferred, 6: AMIT, 7: Amount (RCB)
+          if(toks.length>=8){
+            const quantity=toks[0];
+            const costBase=toks[2];
+            const reduced=toks[7];
+            if(quantity>0 && costBase>0){
+              processedData[code].push({
+                instrumentCode:code,instrumentName:name,type:'Open Tax Parcel',
+                quantity:quantity, acquisitionDate:date,
+                costBase:costBase, reducedCostBase:reduced
+              });
             }
           }
-
-          if (quantity > 0 && costBase > 0){
-            processedData[code].push({
-              instrumentCode: code, instrumentName: name, type:'Open Tax Parcel',
-              quantity, acquisitionDate: date, costBase, reducedCostBase
-            });
-            if (debugMode) addDebugInfo(`Added parcel ${code} ${date} qty=${quantity} CB=${costBase} RCB=${reducedCostBase}`);
-          }
-        });
+        }
       });
-
-      Object.keys(processedData).forEach(k => { if (!processedData[k].length) delete processedData[k]; });
+      for(const k of Object.keys(processedData)){ if(!processedData[k].length) delete processedData[k]; }
     }
 
-    // ---------- LifeFocus ----------
-    function parseLifeFocusFormat(text){
-      if (debugMode) addDebugInfo('Parsing as LifeFocus Report...');
-      const anchorIdx = text.indexOf('Unrealised CGT (current tax year as at');
-      if (anchorIdx < 0){
-        if (debugMode) addDebugInfo('LifeFocus section not found.');
-        return;
-      }
-      const tail = text.substring(anchorIdx);
-      const lines = tail.split(/\n+/);
+    /* ---------------- LifeFocus Report (restored + robust) ---------------- */
+    function parseLifeFocus(text){
+      // Find instrument headers like: "BlackRock ... (MAL0018AU)"
+      const hdrRe=/([A-Za-z0-9.\-,'&/ ]+?)\s*\(([A-Z0-9]{6,})\)/g;
+      const headers=[...text.matchAll(hdrRe)];
+      if(!headers.length) return;
 
-      let currentCode = null, currentName = null, buf = [];
+      headers.forEach((hm,hi)=>{
+        const name=hm[1].trim().replace(/\s+/g,' ');
+        const code=hm[2].trim();
+        const start=hm.index+hm[0].length;
+        const end=hi<headers.length-1?headers[hi+1].index:text.length;
+        const block=text.substring(start,end);
+        if(!processedData[code]) processedData[code]=[];
 
-      const isHeader = (line) => {
-        const m = line.match(/(.+?)\s*\(([^()]+)\)$/);
-        if (!m) return null;
-        return { name: m[1].trim(), code: m[2].trim() };
-      };
-
-      for (const raw of lines){
-        const line = raw.trim();
-        const hdr = isHeader(line);
-        if (hdr){
-          currentName = hdr.name;
-          currentCode = hdr.code;
-          if (!processedData[currentCode]) processedData[currentCode] = [];
-          continue;
-        }
-        if (!currentCode) continue;
-        if (/^Managed Investment$/i.test(line) || /^Share Investment$/i.test(line) || line === ''){
-          buf = [];
-          continue;
-        }
-        if (/^\d{2}-[A-Z]{3}-\d{4}$/.test(line)){ buf=[line]; continue; }
-        if (buf.length > 0 && buf.length < 7){
-          buf.push(line);
-          if (buf.length === 7){
-            const acquisitionDate = buf[0];
-            const purchaseCost = parseFloat(buf[1].replace(/[^0-9.,-]/g,'').replace(/,/g,''));
-            const units = parseFloat(buf[2].replace(/[^0-9.,-]/g,'').replace(/,/g,''));
-            if (!isNaN(purchaseCost) && purchaseCost > 0 && !isNaN(units) && units > 0){
-              processedData[currentCode].push({
-                instrumentCode: currentCode,
-                instrumentName: currentName,
-                type: 'Open Tax Parcel',
-                quantity: units,
-                acquisitionDate,
-                costBase: purchaseCost,
-                reducedCostBase: purchaseCost
-              });
-              if (debugMode) addDebugInfo(`LifeFocus row -> ${currentCode} ${acquisitionDate} qty=${units} cost=${purchaseCost} name=${currentName}`);
-            }
-            buf = [];
+        // Row: DD-MMM-YYYY  $23,000.00  19,068.148  17-JAN-2025  1.30984  24,976.22  2,627.11
+        const rowRe=/\b(\d{2}-[A-Z]{3}-\d{4})\b\s+\$?([\d,]+(?:\.\d{2})?)\s+([\d,]+(?:\.\d{3})?)/g;
+        let m;
+        while((m=rowRe.exec(block))!==null){
+          const date=m[1];
+          const cost=parseFloat(m[2].replace(/,/g,''));
+          const units=parseFloat(m[3].replace(/,/g,''));
+          if(!isNaN(cost)&&cost>0&&!isNaN(units)&&units>0){
+            processedData[code].push({
+              instrumentCode:code,instrumentName:name,type:'Open Tax Parcel',
+              quantity:units,acquisitionDate:date,
+              costBase:cost,reducedCostBase:cost
+            });
           }
         }
-      }
+      });
+      for(const k of Object.keys(processedData)){ if(!processedData[k].length) delete processedData[k]; }
     }
 
-    // ---------- Results / CSV ----------
+    /* ---------------- Results + CSV ---------------- */
     function displayResults(){
-      const resultsContainer = document.getElementById('resultsContainer');
-      resultsContainer.innerHTML = '';
-      if (!Object.keys(processedData).length){
-        resultsContainer.innerHTML = '<p style="text-align:center;color:#999;">No tax parcels found. Check format and debug output.</p>';
+      const resultsContainer=document.getElementById('resultsContainer');
+      resultsContainer.innerHTML='';
+      const keys=Object.keys(processedData);
+      if(!keys.length){
+        resultsContainer.innerHTML='<p style="text-align:center;color:#999;">No tax parcels found. Check format and debug output.</p>';
         document.getElementById('resultsSection').style.display='block';
         return;
       }
-      Object.keys(processedData).sort().forEach(code=>{
-        const parcels = processedData[code];
-        if (!parcels.length) return;
-        const card = document.createElement('div');
-        card.className='asset-card';
-        const name = parcels[0].instrumentName || code;
-        card.innerHTML = `
+      keys.sort().forEach(code=>{
+        const parcels=processedData[code]; if(!parcels.length) return;
+        const name=parcels[0].instrumentName||code;
+        const card=document.createElement('div'); card.className='asset-card';
+        card.innerHTML=`
           <div class="asset-header">
             <div>
-              <div class="asset-name">${code}</div>
-              <div style="color:#666;font-size:.9em;margin-top:5px;">${name}</div>
+              <div class="asset-name">${name}</div>
+              <div class="asset-code">${code}</div>
             </div>
             <div style="display:flex;gap:10px;align-items:center;">
               <div class="asset-count">${parcels.length} parcels</div>
@@ -487,49 +362,47 @@
                     <td>${p.acquisitionDate}</td>
                     <td>$${p.costBase.toFixed(2)}</td>
                     <td>$${p.reducedCostBase.toFixed(2)}</td>
-                  </tr>
-                `).join('')}
+                  </tr>`).join('')}
               </tbody>
             </table>
-          </div>
-        `;
+          </div>`;
         resultsContainer.appendChild(card);
       });
       document.getElementById('resultsSection').style.display='block';
     }
 
     function downloadCSV(code){
-      const parcels = processedData[code];
-      if (!parcels || !parcels.length) return;
-      const csvData = parcels.map(p=>({
+      const rows=processedData[code]; if(!rows?.length) return;
+      const csvData=rows.map(r=>({
         'Instrument Code': code,
-        'Type': p.type,
-        'Number of Shares/ Units': p.quantity,
-        'Acquisition Date': p.acquisitionDate,
+        'Type': r.type,
+        'Number of Shares/ Units': r.quantity,
+        'Acquisition Date': r.acquisitionDate,
         'Disposal Date': '',
-        'Cost Base ($)': p.costBase,
-        'Reduced Cost Base ($)': p.reducedCostBase,
+        'Cost Base ($)': r.costBase,
+        'Reduced Cost Base ($)': r.reducedCostBase,
         'Disposal Cost ($)': '',
-        'Cost Base(AUD)': p.costBase,
-        'Reduced Cost Base(AUD)': p.reducedCostBase,
+        'Cost Base(AUD)': r.costBase,
+        'Reduced Cost Base(AUD)': r.reducedCostBase,
         'Disposal Cost (AUD)': '',
         'Tax parcel ID': ''
       }));
-      const csv = Papa.unparse(csvData);
-      const blob = new Blob([csv], {type:'text/csv'});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href=url; a.download=`${code}_tax_parcels.csv`; document.body.appendChild(a); a.click();
-      document.body.removeChild(a); URL.revokeObjectURL(url);
-      showStatus(`Downloaded ${code}_tax_parcels.csv`, 'success');
+      const csv=Papa.unparse(csvData);
+      const blob=new Blob([csv],{type:'text/csv'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url; a.download=`${code}_tax_parcels.csv`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showStatus(`Downloaded ${code}_tax_parcels.csv`,'success');
     }
 
-    function showStatus(message, type){
-      const el = document.getElementById('statusMessage');
-      el.textContent = message;
-      el.className = `status-message status-${type}`;
+    function showStatus(message,type){
+      const el=document.getElementById('statusMessage');
+      el.textContent=message;
+      el.className=`status-message status-${type}`;
       el.style.display='block';
-      setTimeout(()=>{ el.style.display='none'; }, 5000);
+      setTimeout(()=>{ el.style.display='none'; },5000);
     }
   </script>
 </body>
