@@ -55,7 +55,7 @@
             background: linear-gradient(135deg, #5e72e4 0%, #825ee4 100%);
             color: white;
             padding: 30px;
-            text-align: center.
+            text-align: center;
         }
 
         .header h1 {
@@ -386,6 +386,7 @@
                 <select id="formatSelect">
                     <option value="findex">FINDEX Report</option>
                     <option value="external">External Accountant Report</option>
+                    <option value="lifefocus">LifeFocus Report</option>
                 </select>
                 <span style="color: #666; font-size: 0.9em;">Select your report format or leave on auto-detect</span>
             </div>
@@ -396,7 +397,7 @@
                 <p style="margin: 20px 0; color: #666;">Drag & drop PDF files here or click to browse</p>
                 <label for="fileInput" class="upload-label">Choose Files</label>
                 <input type="file" id="fileInput" class="file-input" accept=".pdf" multiple>
-                <p style="margin-top: 20px; color: #999; font-size: 0.9em;">Supports both FINDEX and external accountant formats</p>
+                <p style="margin-top: 20px; color: #999; font-size: 0.9em;">Supports FINDEX, LifeFocus, and external accountant formats</p>
             </div>
 
             <div class="file-list" id="fileList"></div>
@@ -586,12 +587,128 @@
                 parseFindexFormat(fullText);
             } else if (selectedFormat === 'external') {
                 parseExternalFormat(fullText);
+            } else if (selectedFormat === 'lifefocus') {
+                parseLifeFocusFormat(fullText);
             }
         }
 
         function addDebugInfo(text) {
             const debugContent = document.getElementById('debugContent');
             debugContent.textContent += text + '\n\n';
+        }
+
+        function normalizeDate(input) {
+            if (/^\d{2}\/\d{2}\/\d{4}$/.test(input)) return input;
+            const m = input.match(/^(\d{2})-([A-Z]{3})-(\d{4})$/i);
+            if (!m) return input;
+            const months = {
+                JAN: '01', FEB: '02', MAR: '03', APR: '04', MAY: '05', JUN: '06',
+                JUL: '07', AUG: '08', SEP: '09', OCT: '10', NOV: '11', DEC: '12'
+            };
+            return `${m[1]}/${months[m[2].toUpperCase()] || m[2]}/${m[3]}`;
+        }
+
+        /* ---------------- LifeFocus format parser ---------------- */
+        function parseLifeFocusFormat(text) {
+            if (debugMode) addDebugInfo("Parsing as LifeFocus format...");
+
+            // Narrow to CGT section
+            let startIdx = -1;
+            const startRe = /Unrealised\s+CGT|Purchase\s+date\s+Purchase\s+cost\s+No\.?\s*units/i;
+            const sm = startRe.exec(text);
+            if (sm) startIdx = sm.index;
+            const section = startIdx !== -1 ? text.substring(startIdx) : text;
+
+            // Trim trailing sections
+            let endIdx = section.length;
+            const em = /(Transaction\s+Details|Disclaimer|Portfolio\s+Valuation|Performance\s+Summary)/i.exec(section);
+            if (em) endIdx = em.index;
+            const cgt = section.substring(0, endIdx);
+
+            // Flatten lines for robust regex
+            const flat = cgt.replace(/[\r\n]+/g, ' ');
+
+            // Headers: "<Name> (CODE)"
+            const headerRe = /([^\(]+?)\s*\(\s*([A-Z0-9_.]+)\s*\)/g;
+            const headers = [];
+            let m;
+            while ((m = headerRe.exec(flat)) !== null) {
+                headers.push({ name: m[1].trim(), code: m[2].trim(), pos: m.index });
+            }
+            if (headers.length === 0) {
+                if (debugMode) addDebugInfo("LifeFocus: no headers found.");
+                return;
+            }
+            headers.sort((a, b) => a.pos - b.pos);
+            if (debugMode) addDebugInfo(`LifeFocus: found ${headers.length} headers`);
+
+            // Row pattern (purchase date, purchase cost, units, then current date/price/value/gain)
+            const rowRe = /(\d{2}-[A-Z]{3}-\d{4})\s*\$?([\d,]+(?:\.\d{2})?)\s*([\d,]+(?:\.\d+)?)\s*(\d{2}-[A-Z]{3}-\d{4})\s*([\d.]+)\s*(-?[\d,]+(?:\.\d{2})?)\s*(-?[\d,]+(?:\.\d{2})?)/g;
+            const rows = [];
+            let r;
+            while ((r = rowRe.exec(flat)) !== null) {
+                rows.push({ index: r.index, groups: r });
+            }
+            if (rows.length === 0) {
+                if (debugMode) addDebugInfo("LifeFocus: no rows found.");
+                return;
+            }
+
+            // Pre-create buckets
+            for (const h of headers) {
+                if (!processedData[h.code]) processedData[h.code] = [];
+            }
+
+            // Midpoint boundaries (Voronoi): row goes to nearest header by position
+            const boundaries = []; // boundaries[i] is midpoint between header i and i+1
+            for (let i = 0; i < headers.length - 1; i++) {
+                boundaries.push((headers[i].pos + headers[i + 1].pos) / 2);
+            }
+
+            function nearestHeaderFor(pos) {
+                // Before first boundary => header 0
+                if (boundaries.length === 0) return headers[0];
+                if (pos < boundaries[0]) return headers[0];
+                // After last boundary => last header
+                if (pos >= boundaries[boundaries.length - 1]) return headers[headers.length - 1];
+                // Between boundaries => find segment
+                for (let i = 0; i < boundaries.length - 1; i++) {
+                    if (pos >= boundaries[i] && pos < boundaries[i + 1]) return headers[i + 1];
+                }
+                return headers[headers.length - 1];
+            }
+
+            for (const row of rows) {
+                const h = nearestHeaderFor(row.index);
+                const acq = normalizeDate(row.groups[1]);
+                const cost = parseFloat(row.groups[2].replace(/,/g, ''));
+                const qty = parseFloat(row.groups[3].replace(/,/g, ''));
+                if (!isFinite(cost) || cost < 0) continue;
+                if (!isFinite(qty) || qty <= 0) continue;
+                
+                processedData[h.code].push({
+                    instrumentCode: h.code,
+                    instrumentName: h.name,
+                    type: 'Open Tax Parcel',
+                    quantity: qty,
+                    acquisitionDate: acq,
+                    costBase: cost,
+                    reducedCostBase: cost
+                });
+            }
+
+            if (debugMode) {
+                for (const h of headers) {
+                    addDebugInfo(`[LifeFocus] ${h.code} (${h.name}) -> ${processedData[h.code]?.length || 0} rows`);
+                }
+            }
+
+            // Remove empties
+            Object.keys(processedData).forEach(key => {
+                if (processedData[key].length === 0) {
+                    delete processedData[key];
+                }
+            });
         }
 
         /* ---------------- External format parser (unchanged) ---------------- */
