@@ -10,7 +10,7 @@
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;padding:20px}
-    .container{max-width:1200px;margin:0 auto;background:#fff;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+    .container{max-width:1200px;margin:0 auto;background:#fff;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden;position:relative}
     .header{position:relative;background:linear-gradient(135deg,#5e72e4 0%,#825ee4 100%);color:#fff;padding:30px;text-align:center}
     .header h1{font-size:2.5em;margin-bottom:10px}
     .header p{opacity:.9;font-size:1.1em}
@@ -34,17 +34,16 @@
     .file-info{display:flex;align-items:center;gap:15px}
     .file-icon{font-size:2em;color:#667eea}
     .btn{padding:10px 20px;border:none;border-radius:5px;cursor:pointer;font-weight:600;transition:.3s}
+    .btn-remove{background:#ff4757;color:#fff}.btn-remove:hover{background:#ff3838}
     .btn-process{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;font-size:1.1em;padding:15px 40px;border-radius:25px;margin-top:20px}
     .btn-process:hover{transform:translateY(-2px);box-shadow:0 10px 20px rgba(102,126,234,.4)}
     .btn-process:disabled{opacity:.5;cursor:not-allowed}
-    .btn-remove{background:#ff4757;color:#fff}.btn-remove:hover{background:#ff3838}
     .results-section{margin-top:40px;display:none}
     .results-header{background:#f8f9ff;padding:20px;border-radius:10px;margin-bottom:20px}
     .asset-card{background:#fff;border:1px solid #e0e0e0;border-radius:10px;padding:20px;margin-bottom:20px;transition:.3s}
     .asset-card:hover{box-shadow:0 5px 15px rgba(0,0,0,.1)}
     .asset-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;padding-bottom:15px;border-bottom:2px solid #f0f0f0}
     .asset-name{font-size:1.2em;font-weight:600;color:#333}
-    .asset-code{color:#666;font-size:.9em;margin-top:5px}
     .asset-count{background:#667eea;color:#fff;padding:5px 15px;border-radius:15px;font-size:.9em}
     .table-container{overflow-x:auto;margin-top:15px}
     table{width:100%;border-collapse:collapse}
@@ -80,37 +79,37 @@
           <option value="external">External SMSF Report</option>
           <option value="lifefocus">LifeFocus Report</option>
         </select>
-        <span style="color:#666;font-size:.9em;">Select report format</span>
+        <span style="color:#666;font-size:.9em;">Select your report format</span>
       </div>
 
-      <div class="upload-section" id="uploadSection">
+      <div id="uploadSection" class="upload-section">
         <div class="upload-icon">📁</div>
         <h2>Upload Unrealised CGT Reports</h2>
         <p style="margin:20px 0;color:#666;">Drag & drop PDF files here or click to browse</p>
         <label for="fileInput" class="upload-label">Choose Files</label>
-        <input type="file" id="fileInput" class="file-input" accept=".pdf" multiple />
+        <input id="fileInput" class="file-input" type="file" accept=".pdf" multiple />
         <p style="margin-top:20px;color:#999;font-size:.9em;">Supports Findex, External, and LifeFocus formats</p>
       </div>
 
-      <div class="file-list" id="fileList"></div>
+      <div id="fileList" class="file-list"></div>
 
       <div style="text-align:center;">
-        <button class="btn btn-process" id="processBtn" style="display:none;" onclick="processFiles()">Process Files</button>
+        <button id="processBtn" class="btn btn-process" style="display:none;" onclick="processFiles()">Process Files</button>
       </div>
 
-      <div class="loading" id="loading">
+      <div id="loading" class="loading">
         <div class="spinner"></div>
         <p>Processing your files...</p>
       </div>
 
-      <div class="status-message" id="statusMessage"></div>
+      <div id="statusMessage" class="status-message"></div>
 
-      <div class="debug-section" id="debugSection">
+      <div id="debugSection" class="debug-section">
         <h3>Debug Output</h3>
-        <div class="debug-content" id="debugContent"></div>
+        <div id="debugContent" class="debug-content"></div>
       </div>
 
-      <div class="results-section" id="resultsSection">
+      <div id="resultsSection" class="results-section">
         <div class="results-header">
           <h2>📈 Processed Tax Parcels</h2>
           <p style="margin-top:10px;color:#666;">Review the extracted data and download CSV files for each asset</p>
@@ -121,7 +120,6 @@
   </div>
 
   <script>
-    // Globals
     let uploadedFiles = [];
     let processedData = {};
     let debugMode = true;
@@ -141,16 +139,16 @@
     fileInput.addEventListener('change', e => handleFiles(e.target.files));
 
     function handleFiles(files){
-      for (const file of files) if (file.type === 'application/pdf') uploadedFiles.push(file);
+      for (const f of files) if (f.type === 'application/pdf') uploadedFiles.push(f);
       updateFileList();
     }
     function updateFileList(){
       fileList.innerHTML = '';
       if (!uploadedFiles.length){ processBtn.style.display='none'; return; }
       processBtn.style.display='inline-block';
-      uploadedFiles.forEach((file, idx) => {
+      uploadedFiles.forEach((file, i) => {
         const el = document.createElement('div');
-        el.className = 'file-item';
+        el.className='file-item';
         el.innerHTML = `
           <div class="file-info">
             <div class="file-icon">📄</div>
@@ -159,7 +157,7 @@
               <div style="color:#999;font-size:.9em;">${(file.size/1024).toFixed(2)} KB</div>
             </div>
           </div>
-          <button class="btn btn-remove" onclick="removeFile(${idx})">Remove</button>
+          <button class="btn btn-remove" onclick="removeFile(${i})">Remove</button>
         `;
         fileList.appendChild(el);
       });
@@ -168,179 +166,218 @@
 
     async function processFiles(){
       if (!uploadedFiles.length) return;
-      document.getElementById('loading').style.display = 'block';
-      document.getElementById('resultsSection').style.display = 'none';
-      if (debugMode) document.getElementById('debugSection').style.display = 'block';
-      processBtn.disabled = true; processedData = {};
+      document.getElementById('loading').style.display='block';
+      document.getElementById('resultsSection').style.display='none';
+      if (debugMode) document.getElementById('debugSection').style.display='block';
+      processedData = {}; processBtn.disabled = true;
       try{
         for (const file of uploadedFiles) await processPDF(file);
         displayResults(); showStatus('Files processed successfully!','success');
-      }catch(e){
-        console.error(e); showStatus('Error processing files. See debug output.','error');
-        if (debugMode) addDebugInfo('Error: ' + e.message);
+      }catch(err){
+        console.error(err); showStatus('Error processing files. See console.', 'error');
+        if (debugMode) addDebugInfo('Error: '+err.message);
       }finally{
-        document.getElementById('loading').style.display = 'none';
+        document.getElementById('loading').style.display='none';
         processBtn.disabled = false;
       }
     }
 
     async function processPDF(file){
       const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
       let fullText = '';
       for (let i=1;i<=pdf.numPages;i++){
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
-        const pageText = textContent.items.map(item => item.str).join(' ');
+        const pageText = textContent.items.map(it=>it.str).join(' ');
         fullText += pageText + '\n';
       }
-      if (debugMode) addDebugInfo(`Extracted text from ${file.name} (first 600 chars):\n${fullText.substring(0,600)}`);
+      if (debugMode) addDebugInfo(`Extracted from ${file.name}:\n${fullText.substring(0,500)}`);
 
       const fmt = formatSelect.value;
-      if (fmt === 'findex') parseFindex(fullText);
-      else if (fmt === 'external') parseExternal(fullText);
-      else if (fmt === 'lifefocus') parseLifeFocus(fullText);
+      if (fmt === 'findex') parseFindexFormat(fullText);
+      else if (fmt === 'external') parseExternalFormat(fullText);
+      else if (fmt === 'lifefocus') parseLifeFocusFormat(fullText);
     }
 
     function addDebugInfo(t){
-      const box = document.getElementById('debugContent');
-      box.textContent += t + '\n\n';
+      const d=document.getElementById('debugContent');
+      d.textContent += t + '\n\n';
     }
 
-    /* ---------------- External SMSF (unchanged) ---------------- */
-    function parseExternal(text){
-      const assetHeaders=[];
+    /* ---------------- External SMSF Report (unchanged) ---------------- */
+    function parseExternalFormat(text){
+      if (debugMode) addDebugInfo('Parsing as External SMSF Report...');
+      const headers=[];
       const fundPattern=/([A-Z]{3}\d{4}[A-Z]{2}\d*)\s*[-–]\s*([^0-9\n]+)/g;
-      let m; while((m=fundPattern.exec(text))!==null){ assetHeaders.push({code:m[1],name:m[2].trim(),position:m.index}); }
+      let m; while((m=fundPattern.exec(text))!==null){ headers.push({code:m[1],name:m[2].trim(),position:m.index}); }
       const stockPattern=/([A-Z]{2,6}\.[A-Z]{2}\d*)\s*[-–]\s*([^0-9\n]+)/g;
-      while((m=stockPattern.exec(text))!==null){ assetHeaders.push({code:m[1],name:m[2].trim(),position:m.index}); }
-      assetHeaders.sort((a,b)=>a.position-b.position);
+      while((m=stockPattern.exec(text))!==null){ headers.push({code:m[1],name:m[2].trim(),position:m.index}); }
+      headers.sort((a,b)=>a.position-b.position);
+      if (debugMode) addDebugInfo(`Found ${headers.length} total assets`);
 
-      for (let i=0;i<assetHeaders.length;i++){
-        const a=assetHeaders[i];
-        const next=i<assetHeaders.length-1?assetHeaders[i+1].position:text.length;
-        const section=text.substring(a.position,next);
-        if(!processedData[a.code]) processedData[a.code]=[];
+      for (let i=0;i<headers.length;i++){
+        const cur=headers[i];
+        const nextPos = i<headers.length-1 ? headers[i+1].position : text.length;
+        const section = text.substring(cur.position, nextPos);
+        if (!processedData[cur.code]) processedData[cur.code]=[];
 
-        const dateRe=/(\d{2}\/\d{2}\/\d{4})/g; let dm; const dates=[];
-        while((dm=dateRe.exec(section))!==null) dates.push({date:dm[1],pos:dm.index});
+        const dateRe=/(\d{2}\/\d{2}\/\d{4})/g;
+        let dmt; const dates=[];
+        while((dmt=dateRe.exec(section))!==null){ dates.push({date:dmt[1],pos:dmt.index}); }
 
-        dates.forEach((d,idx)=>{
-          const start=d.pos, end=idx<dates.length-1?dates[idx+1].pos:section.length;
-          const row=section.substring(start,end).replace(/\d{2}\/\d{2}\/\d{4}/,'').trim();
+        dates.forEach((dObj, idx)=>{
+          const start=dObj.pos, end= idx<dates.length-1 ? dates[idx+1].pos : section.length;
+          const row = section.substring(start,end).replace(/\d{2}\/\d{2}\/\d{4}/,'').trim();
           const numRe=/\(?([\d,]+\.?\d*)\)?/g;
-          const nums=[...row.matchAll(numRe)].map(mm=>parseFloat(mm[1].replace(/,/g,''))).filter(v=>!isNaN(v));
-          if(nums.length>=5){
-            const units=nums[1], cb3=nums[2], rcb5=nums[4];
-            if(units>0&&cb3>0){
-              processedData[a.code].push({instrumentCode:a.code,instrumentName:a.name,type:'Open Tax Parcel',quantity:units,acquisitionDate:d.date,costBase:rcb5,reducedCostBase:cb3});
+          const nums=[...row.matchAll(numRe)].map(mm=>{
+            const val=parseFloat(mm[1].replace(/,/g,'')); return isNaN(val)?null:val;
+          }).filter(v=>v!==null);
+
+          if (nums.length>=5){
+            const units=nums[1], cost3=nums[2], rcb5=nums[4];
+            if (units>0 && cost3>0){
+              processedData[cur.code].push({
+                instrumentCode: cur.code, instrumentName: cur.name, type:'Open Tax Parcel',
+                quantity: units, acquisitionDate: dObj.date,
+                costBase: rcb5, reducedCostBase: cost3
+              });
             }
-          }else if(nums.length>=3){
-            const units=nums[1]??nums[0], cb=nums[2]??nums[1];
-            if(units>0&&cb>0){
-              processedData[a.code].push({instrumentCode:a.code,instrumentName:a.name,type:'Open Tax Parcel',quantity:units,acquisitionDate:d.date,costBase:cb,reducedCostBase:cb});
+          } else if (nums.length>=3){
+            const units=nums[1] ?? nums[0], cost=nums[2] ?? nums[1];
+            if (units>0 && cost>0){
+              processedData[cur.code].push({
+                instrumentCode: cur.code, instrumentName: cur.name, type:'Open Tax Parcel',
+                quantity: units, acquisitionDate: dObj.date,
+                costBase: cost, reducedCostBase: cost
+              });
             }
           }
         });
       }
-      for(const k of Object.keys(processedData)){ if(!processedData[k].length) delete processedData[k]; }
+      Object.keys(processedData).forEach(k=>{ if(!processedData[k].length) delete processedData[k]; });
     }
 
-    /* ---------------- FINDEX SMSF (fix ONLY RCB; keep quantity logic) ---------------- */
-    function parseFindex(text){
+    /* ---------------- FINDEX SMSF Report (RCB = Amount column) ---------------- */
+    function parseFindexFormat(text){
+      if (debugMode) addDebugInfo('Parsing as Findex SMSF Report...');
       const assetRe=/([A-Za-z\.\s&]+?)\s*\(ASX:([A-Z]{2,6})\)/g;
       const assets=[...text.matchAll(assetRe)];
-      if(!assets.length) return;
-
-      assets.forEach((am,ai)=>{
+      if (debugMode) addDebugInfo(`Found ${assets.length} assets with ASX codes`);
+      assets.forEach((am, idx)=>{
         const name=am[1].trim(), code=am[2].trim();
-        const start=am.index, end = ai<assets.length-1?assets[ai+1].index:text.length;
+        const start=am.index, end= idx<assets.length-1 ? assets[idx+1].index : text.length;
         const section=text.substring(start,end);
-        if(!processedData[code]) processedData[code]=[];
+        if (!processedData[code]) processedData[code]=[];
 
-        // Each row begins with dd/mm/yyyy then a long run of numbers.
-        const rowRe=/(\d{2}\/\d{2}\/\d{4})((?:\s+[-()$,.\d]+){8,})/g;
-        let rm;
-        while((rm=rowRe.exec(section))!==null){
-          const date=rm[1];
-          const tail=rm[2];
-          const toks=[...tail.matchAll(/-?\(?\d{1,3}(?:,\d{3})*(?:\.\d+)?\)?/g)]
-            .map(t=>parseFloat(t[0].replace(/[(),]/g,'')))
-            .filter(v=>!isNaN(v));
+        // Find all dates inside this asset block
+        const dateRe=/\b(\d{2}\/\d{2}\/\d{4})\b/g;
+        const dateHits=[...section.matchAll(dateRe)];
+        for (let i=0;i<dateHits.length;i++){
+          const date=dateHits[i][1];
+          const rowStart=dateHits[i].index + date.length; // start just after the date
+          const rowEnd = i<dateHits.length-1 ? dateHits[i+1].index : section.length;
+          const slice = section.substring(rowStart, rowEnd);
 
-          // Mapping after the date:
-          // 0: Quantity, 1: Market Value, 2: Original Cost (Cost Base), 3: Accounting Gain/Loss,
-          // 4: Tax Free, 5: Tax Deferred, 6: AMIT, 7: Amount (RCB)
-          if(toks.length>=8){
-            const quantity=toks[0];
-            const costBase=toks[2];
-            const reduced=toks[7];
-            if(quantity>0 && costBase>0){
+          // extract up to ~20 numeric tokens after the date
+          const tokRe=/\-?\(?\$?\d{1,3}(?:,\d{3})*(?:\.\d+)?\)?/g;
+          const tokens=[...slice.matchAll(tokRe)].map(t=>{
+            const s=t[0].replace(/\$/g,'').replace(/\(|\)/g,'').replace(/,/g,'');
+            const v=parseFloat(s); return isNaN(v)?null:v;
+          }).filter(v=>v!==null);
+
+          // Expected order: [0]=Qty, [1]=Market, [2]=OriginalCost, [3]=AcctGain, [4]=TaxFree, [5]=TaxDeferred, [6]=AMIT, [7]=Amount (RCB)
+          if (tokens.length>=8){
+            const qty=tokens[0], costBase=tokens[2], rcb=tokens[7];
+            if (qty>0 && costBase>0){
               processedData[code].push({
-                instrumentCode:code,instrumentName:name,type:'Open Tax Parcel',
-                quantity:quantity, acquisitionDate:date,
-                costBase:costBase, reducedCostBase:reduced
+                instrumentCode: code, instrumentName: name, type:'Open Tax Parcel',
+                quantity: qty, acquisitionDate: date,
+                costBase: costBase, reducedCostBase: rcb
               });
+              if (debugMode) addDebugInfo(`FINDEX row -> ${code} ${date} qty=${qty} cost=${costBase} rcb=${rcb}`);
+            }
+          } else {
+            // fallback similar to previous approach
+            if (tokens.length>=3){
+              const qty=tokens[0], costBase=tokens[2];
+              if (qty>0 && costBase>0){
+                processedData[code].push({
+                  instrumentCode: code, instrumentName: name, type:'Open Tax Parcel',
+                  quantity: qty, acquisitionDate: date,
+                  costBase: costBase, reducedCostBase: costBase
+                });
+              }
             }
           }
         }
       });
-      for(const k of Object.keys(processedData)){ if(!processedData[k].length) delete processedData[k]; }
+      Object.keys(processedData).forEach(k=>{ if(!processedData[k].length) delete processedData[k]; });
     }
 
-    /* ---------------- LifeFocus Report (restored + robust) ---------------- */
-    function parseLifeFocus(text){
-      // Find instrument headers like: "BlackRock ... (MAL0018AU)"
-      const hdrRe=/([A-Za-z0-9.\-,'&/ ]+?)\s*\(([A-Z0-9]{6,})\)/g;
-      const headers=[...text.matchAll(hdrRe)];
-      if(!headers.length) return;
+    /* ---------------- LifeFocus Report ----------------
+       - Start parsing from "Unrealised CGT (current tax year as at"
+       - Rows: Purchase date | Purchase cost | No. units | Unit price date | Unit price $ | Current balance $ | Estimated unrealised gain/loss $
+       - Output: Type=Open Tax Parcel; Acquisition Date=Purchase date; Quantity=No. units; CostBase=Purchase cost; ReducedCostBase=Purchase cost
+    ---------------------------------------------------*/
+    function parseLifeFocusFormat(text){
+      if (debugMode) addDebugInfo('Parsing as LifeFocus Report...');
+      const anchor = text.indexOf('Unrealised CGT (current tax year as at');
+      if (anchor < 0){ if (debugMode) addDebugInfo('LifeFocus anchor not found.'); return; }
+      const tail = text.substring(anchor);
 
-      headers.forEach((hm,hi)=>{
-        const name=hm[1].trim().replace(/\s+/g,' ');
-        const code=hm[2].trim();
-        const start=hm.index+hm[0].length;
-        const end=hi<headers.length-1?headers[hi+1].index:text.length;
-        const block=text.substring(start,end);
-        if(!processedData[code]) processedData[code]=[];
+      // Split into instrument sections (e.g., "BlackRock Glob Allocation Fd Aus Class D (MAL0018AU)")
+      const instRe = /([A-Za-z0-9\.\-,'&/ ]+?)\s*\(([A-Z0-9]{6,})\)\s*(?=\d{2}-[A-Z]{3}-\d{4}|\n|$)/g;
+      const matches=[...tail.matchAll(instRe)];
 
-        // Row: DD-MMM-YYYY  $23,000.00  19,068.148  17-JAN-2025  1.30984  24,976.22  2,627.11
-        const rowRe=/\b(\d{2}-[A-Z]{3}-\d{4})\b\s+\$?([\d,]+(?:\.\d{2})?)\s+([\d,]+(?:\.\d{3})?)/g;
-        let m;
-        while((m=rowRe.exec(block))!==null){
-          const date=m[1];
-          const cost=parseFloat(m[2].replace(/,/g,''));
-          const units=parseFloat(m[3].replace(/,/g,''));
-          if(!isNaN(cost)&&cost>0&&!isNaN(units)&&units>0){
+      for (let i=0;i<matches.length;i++){
+        const name = matches[i][1].trim().replace(/\s+/g,' ');
+        const code = matches[i][2].trim();
+        const start = matches[i].index + matches[i][0].length;
+        const end = i<matches.length-1 ? matches[i+1].index : tail.length;
+        const block = tail.substring(start, end);
+
+        if (!processedData[code]) processedData[code]=[];
+
+        // Row pattern: 07-MAY-2008 $23,000.00 19,068.148 17-JAN-2025 1.30984 24,976.22 2,627.11
+        const rowRe = /\b(\d{2}-[A-Z]{3}-\d{4})\b\s+\$?([\d,]+\.\d{2})\s+([\d,]+\.\d{3})/g;
+        let r;
+        while((r=rowRe.exec(block))!==null){
+          const date = r[1];
+          const purchaseCost = parseFloat(r[2].replace(/,/g,''));
+          const units = parseFloat(r[3].replace(/,/g,''));
+          if (!isNaN(purchaseCost) && purchaseCost>0 && !isNaN(units) && units>0){
             processedData[code].push({
-              instrumentCode:code,instrumentName:name,type:'Open Tax Parcel',
-              quantity:units,acquisitionDate:date,
-              costBase:cost,reducedCostBase:cost
+              instrumentCode: code, instrumentName: name, type:'Open Tax Parcel',
+              quantity: units, acquisitionDate: date,
+              costBase: purchaseCost, reducedCostBase: purchaseCost
             });
+            if (debugMode) addDebugInfo(`LifeFocus row -> ${code} ${date} qty=${units} cost=${purchaseCost}`);
           }
         }
-      });
-      for(const k of Object.keys(processedData)){ if(!processedData[k].length) delete processedData[k]; }
+      }
+      Object.keys(processedData).forEach(k=>{ if(!processedData[k].length) delete processedData[k]; });
     }
 
     /* ---------------- Results + CSV ---------------- */
     function displayResults(){
-      const resultsContainer=document.getElementById('resultsContainer');
-      resultsContainer.innerHTML='';
+      const rc=document.getElementById('resultsContainer');
+      rc.innerHTML='';
       const keys=Object.keys(processedData);
-      if(!keys.length){
-        resultsContainer.innerHTML='<p style="text-align:center;color:#999;">No tax parcels found. Check format and debug output.</p>';
+      if (!keys.length){
+        rc.innerHTML='<p style="text-align:center;color:#999;">No tax parcels found. Check the format selector and debug output.</p>';
         document.getElementById('resultsSection').style.display='block';
         return;
       }
       keys.sort().forEach(code=>{
-        const parcels=processedData[code]; if(!parcels.length) return;
+        const parcels=processedData[code]; if (!parcels.length) return;
         const name=parcels[0].instrumentName||code;
         const card=document.createElement('div'); card.className='asset-card';
-        card.innerHTML=`
+        card.innerHTML = `
           <div class="asset-header">
             <div>
-              <div class="asset-name">${name}</div>
-              <div class="asset-code">${code}</div>
+              <div class="asset-name">${code}</div>
+              <div style="color:#666;font-size:.9em;margin-top:5px;">${name}</div>
             </div>
             <div style="display:flex;gap:10px;align-items:center;">
               <div class="asset-count">${parcels.length} parcels</div>
@@ -366,14 +403,14 @@
               </tbody>
             </table>
           </div>`;
-        resultsContainer.appendChild(card);
+        rc.appendChild(card);
       });
       document.getElementById('resultsSection').style.display='block';
     }
 
     function downloadCSV(code){
-      const rows=processedData[code]; if(!rows?.length) return;
-      const csvData=rows.map(r=>({
+      const rows=processedData[code]; if (!rows?.length) return;
+      const csvData = rows.map(r=>({
         'Instrument Code': code,
         'Type': r.type,
         'Number of Shares/ Units': r.quantity,
@@ -390,18 +427,14 @@
       const csv=Papa.unparse(csvData);
       const blob=new Blob([csv],{type:'text/csv'});
       const url=URL.createObjectURL(blob);
-      const a=document.createElement('a');
-      a.href=url; a.download=`${code}_tax_parcels.csv`;
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      const a=document.createElement('a'); a.href=url; a.download=`${code}_tax_parcels.csv`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
       showStatus(`Downloaded ${code}_tax_parcels.csv`,'success');
     }
 
-    function showStatus(message,type){
+    function showStatus(msg,type){
       const el=document.getElementById('statusMessage');
-      el.textContent=message;
-      el.className=`status-message status-${type}`;
-      el.style.display='block';
+      el.textContent=msg; el.className=`status-message status-${type}`; el.style.display='block';
       setTimeout(()=>{ el.style.display='none'; },5000);
     }
   </script>
