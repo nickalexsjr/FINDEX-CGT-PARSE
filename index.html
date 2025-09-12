@@ -545,50 +545,88 @@
             }
         }
 
+        // Enhanced text extraction for LifeFocus format
+        async function extractStructuredText(page) {
+            const textContent = await page.getTextContent();
+            const viewport = page.getViewport({ scale: 1.0 });
+            
+            // Group text items by Y position (to preserve rows)
+            const textByLine = {};
+            
+            textContent.items.forEach(item => {
+                if (!item.str || item.str.trim() === '') return;
+                
+                // Round Y position to group items on the same line
+                const y = Math.round(item.transform[5]);
+                
+                if (!textByLine[y]) {
+                    textByLine[y] = [];
+                }
+                
+                textByLine[y].push({
+                    text: item.str,
+                    x: item.transform[4]
+                });
+            });
+            
+            // Sort lines by Y position (top to bottom)
+            const sortedLines = Object.keys(textByLine)
+                .sort((a, b) => parseInt(b) - parseInt(a))
+                .map(y => {
+                    // Sort items within each line by X position (left to right)
+                    const sortedItems = textByLine[y].sort((a, b) => a.x - b.x);
+                    return sortedItems.map(item => item.text).join(' ');
+                });
+            
+            return sortedLines.join('\n');
+        }
+
         async function processPDF(file) {
             const arrayBuffer = await file.arrayBuffer();
             const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
             
-            let fullText = '';
-            let pageTexts = [];
+            const selectedFormat = formatSelect.value;
             
-            for (let i = 1; i <= pdf.numPages; i++) {
-                const page = await pdf.getPage(i);
-                const textContent = await page.getTextContent();
-                const pageText = textContent.items.map(item => item.str).join(' ');
-                fullText += pageText + '\n';
-                pageTexts.push(pageText);
-            }
-
-            if (debugMode) {
-                addDebugInfo(`=== DETAILED PAGE EXTRACTION FOR ${file.name} ===\n`);
+            if (selectedFormat === 'lifefocus') {
+                // Use enhanced extraction for LifeFocus
+                let structuredText = '';
                 
-                // Show first 4 pages in detail
-                for (let i = 0; i < Math.min(4, pageTexts.length); i++) {
-                    addDebugInfo(`\n========== PAGE ${i + 1} ==========`);
-                    addDebugInfo(pageTexts[i]);
-                    addDebugInfo(`========== END PAGE ${i + 1} ==========\n`);
-                    
-                    // Simple probes (optional)
-                    if (pageTexts[i].includes('3987')) {
-                        addDebugInfo(`*** FOUND "3987" on page ${i + 1} ***`);
-                    }
-                    if (pageTexts[i].includes('AMC')) {
-                        addDebugInfo(`*** FOUND "AMC" on page ${i + 1} ***`);
-                    }
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const pageText = await extractStructuredText(page);
+                    structuredText += pageText + '\n\n';
                 }
                 
-                addDebugInfo('\n=== END DETAILED EXTRACTION ===\n');
-            }
+                if (debugMode) {
+                    addDebugInfo(`=== LIFEFOCUS STRUCTURED EXTRACTION ===\n`);
+                    addDebugInfo(structuredText.substring(0, 5000));
+                    addDebugInfo(`\n=== END STRUCTURED EXTRACTION ===\n`);
+                }
+                
+                parseLifeFocusFormat(structuredText);
+            } else {
+                // Use original extraction for other formats
+                let fullText = '';
+                let pageTexts = [];
+                
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const pageText = textContent.items.map(item => item.str).join(' ');
+                    fullText += pageText + '\n';
+                    pageTexts.push(pageText);
+                }
 
-            // Check selected format
-            const selectedFormat = formatSelect.value;
-            if (selectedFormat === 'findex') {
-                parseFindexFormat(fullText);
-            } else if (selectedFormat === 'external') {
-                parseExternalFormat(fullText);
-            } else if (selectedFormat === 'lifefocus') {
-                parseLifeFocusFormat(fullText);
+                if (debugMode && selectedFormat !== 'lifefocus') {
+                    addDebugInfo(`=== EXTRACTION FOR ${file.name} ===\n`);
+                    addDebugInfo(fullText.substring(0, 2000));
+                }
+
+                if (selectedFormat === 'findex') {
+                    parseFindexFormat(fullText);
+                } else if (selectedFormat === 'external') {
+                    parseExternalFormat(fullText);
+                }
             }
         }
 
@@ -608,107 +646,143 @@
             return `${m[1]}/${months[m[2].toUpperCase()] || m[2]}/${m[3]}`;
         }
 
-        /* ---------------- LifeFocus format parser ---------------- */
+        /* ---------------- Enhanced LifeFocus format parser ---------------- */
         function parseLifeFocusFormat(text) {
-            if (debugMode) addDebugInfo("Parsing as LifeFocus format...");
+            if (debugMode) addDebugInfo("Parsing as LifeFocus format with structured extraction...");
 
-            // Narrow to CGT section
-            let startIdx = -1;
-            const startRe = /Unrealised\s+CGT|Purchase\s+date\s+Purchase\s+cost\s+No\.?\s*units/i;
-            const sm = startRe.exec(text);
-            if (sm) startIdx = sm.index;
-            const section = startIdx !== -1 ? text.substring(startIdx) : text;
-
-            // Trim trailing sections
-            let endIdx = section.length;
-            const em = /(Transaction\s+Details|Disclaimer|Portfolio\s+Valuation|Performance\s+Summary)/i.exec(section);
-            if (em) endIdx = em.index;
-            const cgt = section.substring(0, endIdx);
-
-            // Flatten lines for robust regex
-            const flat = cgt.replace(/[\r\n]+/g, ' ');
-
-            // Headers: "<Name> (CODE)"
-            const headerRe = /([^\(]+?)\s*\(\s*([A-Z0-9_.]+)\s*\)/g;
-            const headers = [];
-            let m;
-            while ((m = headerRe.exec(flat)) !== null) {
-                headers.push({ name: m[1].trim(), code: m[2].trim(), pos: m.index });
-            }
-            if (headers.length === 0) {
-                if (debugMode) addDebugInfo("LifeFocus: no headers found.");
-                return;
-            }
-            headers.sort((a, b) => a.pos - b.pos);
-            if (debugMode) addDebugInfo(`LifeFocus: found ${headers.length} headers`);
-
-            // Row pattern (purchase date, purchase cost, units, then current date/price/value/gain)
-            const rowRe = /(\d{2}-[A-Z]{3}-\d{4})\s*\$?([\d,]+(?:\.\d{2})?)\s*([\d,]+(?:\.\d+)?)\s*(\d{2}-[A-Z]{3}-\d{4})\s*([\d.]+)\s*(-?[\d,]+(?:\.\d{2})?)\s*(-?[\d,]+(?:\.\d{2})?)/g;
-            const rows = [];
-            let r;
-            while ((r = rowRe.exec(flat)) !== null) {
-                rows.push({ index: r.index, groups: r });
-            }
-            if (rows.length === 0) {
-                if (debugMode) addDebugInfo("LifeFocus: no rows found.");
-                return;
-            }
-
-            // Pre-create buckets
-            for (const h of headers) {
-                if (!processedData[h.code]) processedData[h.code] = [];
-            }
-
-            // Midpoint boundaries (Voronoi): row goes to nearest header by position
-            const boundaries = []; // boundaries[i] is midpoint between header i and i+1
-            for (let i = 0; i < headers.length - 1; i++) {
-                boundaries.push((headers[i].pos + headers[i + 1].pos) / 2);
-            }
-
-            function nearestHeaderFor(pos) {
-                // Before first boundary => header 0
-                if (boundaries.length === 0) return headers[0];
-                if (pos < boundaries[0]) return headers[0];
-                // After last boundary => last header
-                if (pos >= boundaries[boundaries.length - 1]) return headers[headers.length - 1];
-                // Between boundaries => find segment
-                for (let i = 0; i < boundaries.length - 1; i++) {
-                    if (pos >= boundaries[i] && pos < boundaries[i + 1]) return headers[i + 1];
+            // Find the Unrealised CGT section
+            const lines = text.split('\n');
+            let cgtStartIndex = -1;
+            let cgtEndIndex = lines.length;
+            
+            // Find start of CGT section
+            for (let i = 0; i < lines.length; i++) {
+                if (lines[i].match(/Unrealised\s+CGT|Purchase\s+date.*Purchase\s+cost.*units/i)) {
+                    cgtStartIndex = i;
+                    break;
                 }
-                return headers[headers.length - 1];
             }
-
-            for (const row of rows) {
-                const h = nearestHeaderFor(row.index);
-                const acq = normalizeDate(row.groups[1]);
-                const cost = parseFloat(row.groups[2].replace(/,/g, ''));
-                const qty = parseFloat(row.groups[3].replace(/,/g, ''));
-                if (!isFinite(cost) || cost < 0) continue;
-                if (!isFinite(qty) || qty <= 0) continue;
-                
-                processedData[h.code].push({
-                    instrumentCode: h.code,
-                    instrumentName: h.name,
-                    type: 'Open Tax Parcel',
-                    quantity: qty,
-                    acquisitionDate: acq,
-                    costBase: cost,
-                    reducedCostBase: cost
-                });
+            
+            if (cgtStartIndex === -1) {
+                if (debugMode) addDebugInfo("Could not find CGT section");
+                return;
             }
-
+            
+            // Find end of CGT section
+            for (let i = cgtStartIndex + 1; i < lines.length; i++) {
+                if (lines[i].match(/Transaction\s+Details|Disclaimer|Portfolio\s+Valuation|Performance\s+Summary|Total\s+Unrealised/i)) {
+                    cgtEndIndex = i;
+                    break;
+                }
+            }
+            
+            const cgtLines = lines.slice(cgtStartIndex, cgtEndIndex);
+            
             if (debugMode) {
-                for (const h of headers) {
-                    addDebugInfo(`[LifeFocus] ${h.code} (${h.name}) -> ${processedData[h.code]?.length || 0} rows`);
+                addDebugInfo(`CGT Section found from line ${cgtStartIndex} to ${cgtEndIndex}`);
+                addDebugInfo("First 20 lines of CGT section:");
+                addDebugInfo(cgtLines.slice(0, 20).join('\n'));
+            }
+            
+            // Process the CGT section
+            let currentAsset = null;
+            
+            for (let i = 0; i < cgtLines.length; i++) {
+                const line = cgtLines[i].trim();
+                
+                if (!line) continue;
+                
+                // Check for asset header pattern: "Name (CODE)"
+                const assetMatch = line.match(/^(.+?)\s*\(\s*([A-Z0-9_.]+)\s*\)$/);
+                if (assetMatch) {
+                    const name = assetMatch[1].trim();
+                    const code = assetMatch[2].trim();
+                    currentAsset = { name, code };
+                    
+                    if (!processedData[code]) {
+                        processedData[code] = [];
+                    }
+                    
+                    if (debugMode) {
+                        addDebugInfo(`Found asset: ${code} - ${name}`);
+                    }
+                    continue;
+                }
+                
+                // Look for data rows - enhanced pattern for structured text
+                // Pattern: date, cost, units, date, price, value, gain
+                const rowPattern = /(\d{2}-[A-Z]{3}-\d{4})\s+\$?([\d,]+(?:\.\d{2})?)\s+([\d,]+(?:\.\d+)?)\s+(\d{2}-[A-Z]{3}-\d{4})\s+([\d.]+)\s+\$?([\d,]+(?:\.\d{2})?)\s+\$?(-?[\d,]+(?:\.\d{2})?)/i;
+                const rowMatch = line.match(rowPattern);
+                
+                if (rowMatch && currentAsset) {
+                    const acquisitionDate = normalizeDate(rowMatch[1]);
+                    const purchaseCost = parseFloat(rowMatch[2].replace(/,/g, ''));
+                    const units = parseFloat(rowMatch[3].replace(/,/g, ''));
+                    
+                    if (units > 0 && purchaseCost > 0) {
+                        const parcel = {
+                            instrumentCode: currentAsset.code,
+                            instrumentName: currentAsset.name,
+                            type: 'Open Tax Parcel',
+                            quantity: units,
+                            acquisitionDate: acquisitionDate,
+                            costBase: purchaseCost,
+                            reducedCostBase: purchaseCost
+                        };
+                        
+                        processedData[currentAsset.code].push(parcel);
+                        
+                        if (debugMode) {
+                            addDebugInfo(`  Added parcel: ${acquisitionDate} - Units: ${units}, Cost: ${purchaseCost}`);
+                        }
+                    }
+                } else if (currentAsset) {
+                    // Alternative pattern for rows that might be split across lines
+                    const datePattern = /(\d{2}-[A-Z]{3}-\d{4})/g;
+                    const numberPattern = /\$?([\d,]+(?:\.\d+)?)/g;
+                    
+                    const dates = line.match(datePattern);
+                    const numbers = line.match(numberPattern);
+                    
+                    if (dates && dates.length >= 1 && numbers && numbers.length >= 3) {
+                        const acquisitionDate = normalizeDate(dates[0]);
+                        const purchaseCost = parseFloat(numbers[0].replace(/[$,]/g, ''));
+                        const units = parseFloat(numbers[1].replace(/[$,]/g, ''));
+                        
+                        if (units > 0 && purchaseCost > 0) {
+                            const parcel = {
+                                instrumentCode: currentAsset.code,
+                                instrumentName: currentAsset.name,
+                                type: 'Open Tax Parcel',
+                                quantity: units,
+                                acquisitionDate: acquisitionDate,
+                                costBase: purchaseCost,
+                                reducedCostBase: purchaseCost
+                            };
+                            
+                            processedData[currentAsset.code].push(parcel);
+                            
+                            if (debugMode) {
+                                addDebugInfo(`  Added parcel (alt): ${acquisitionDate} - Units: ${units}, Cost: ${purchaseCost}`);
+                            }
+                        }
+                    }
                 }
             }
-
-            // Remove empties
+            
+            // Clean up empty assets
             Object.keys(processedData).forEach(key => {
                 if (processedData[key].length === 0) {
                     delete processedData[key];
                 }
             });
+            
+            if (debugMode) {
+                addDebugInfo(`\nTotal assets with data: ${Object.keys(processedData).length}`);
+                Object.keys(processedData).forEach(code => {
+                    addDebugInfo(`${code}: ${processedData[code].length} parcels`);
+                });
+            }
         }
 
         /* ---------------- External format parser (unchanged) ---------------- */
@@ -860,7 +934,7 @@
             }
         }
 
-        /* ---------------- FINDEX format parser (Parcel 1 RCB fix) ---------------- */
+        /* ---------------- FINDEX format parser (unchanged) ---------------- */
         function parseFindexFormat(text) {
             if (debugMode) {
                 addDebugInfo("Parsing as FINDEX format...");
@@ -894,7 +968,7 @@
                 let holdingMatch;
                 const parcelDataList = [];
 
-                // --- NEW: determine Parcel 1 RCB from numbers BEFORE the first date ---
+                // Determine Parcel 1 RCB from numbers BEFORE the first date
                 let firstDateMatch = assetSection.match(/\d{2}\/\d{2}\/\d{4}/);
                 let parcel1ReducedCostBase = null;
                 if (firstDateMatch) {
@@ -950,7 +1024,7 @@
                     const { date, numbers } = parcelData;
                     let quantity, costBase, reducedCostBase;
 
-                    // Quantity & cost base inference (unchanged heuristics)
+                    // Quantity & cost base inference
                     if (numbers[1] > 0 && numbers[1] < numbers[0]) {
                         quantity = numbers[1];
                         costBase = numbers[2];
@@ -1006,7 +1080,7 @@
             });
         }
 
-        /* ---------------- Results UI & CSV (unchanged) ---------------- */
+        /* ---------------- Results UI & CSV ---------------- */
         function displayResults() {
             const resultsContainer = document.getElementById('resultsContainer');
             resultsContainer.innerHTML = '';
